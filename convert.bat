@@ -1,6 +1,9 @@
 @echo off
 setlocal enabledelayedexpansion
 
+
+:: ================================== SETUP CODE ================================
+
 :: Check input file
 if not exist "%~1" (
     echo Error: File not found - %~1
@@ -34,6 +37,7 @@ mkdir "%tempdir%"
 :: Get base filename
 for %%F in ("%~n1") do set "basename=%%~F"
 
+:: ================================== GIF -> JPEX_XL ================================
 
 :: 1. Convert GIF to *lossy* JPEG XL frames (alpha preserved)
 ffmpeg -vsync vfr ^
@@ -41,25 +45,44 @@ ffmpeg -vsync vfr ^
   -i "%~1" ^
   -vf "format=rgba" ^
   -c:v jpegxl ^
-    -distance 5.0 ^
-    -effort 9 ^
+    -distance 3.0 ^
+    -effort 8 ^
     -modular 0 ^
   "%tempdir%\%%03d.jxl"
+
+:: ================================== JPEG_XL -> PNG ================================
 
 :: 2. Convert JPEG XL frames to PNG
 for /f "delims=" %%f in ('dir /b /on "%tempdir%\*.jxl"') do (
     set "jxlfile=%tempdir%\%%f"
     set "pngfile=!jxlfile:.jxl=.png!"
-    ffmpeg -i "!jxlfile!" -c:v png -compression_level 2 "!pngfile!" >nul 2>&1
+    ffmpeg -i "!jxlfile!" -c:v png -compression_level 4 "!pngfile!" >nul 2>&1
     del "!jxlfile!"
 )
 
+:: ================================== DUPLICATE FRAME IF WE ONLY HAVE 1 ================================
+
+
+
+set /a file_count=0
+for /f %%f in ('dir /b /a-d "%tempdir%\*.png" 2^>nul ^| find /c /v ""') do set /a file_count=%%f
+
+if !file_count! equ 1 (
+    set "frame1="
+    for %%f in ("%tempdir%\*.png") do (
+        if not defined frame1 set "frame1=%%f"
+    )
+    echo Duplicating single frame for AVIF animation...
+    copy /y "!frame1!" "%tempdir%\duplicate.png" >nul
+)
+
+:: ================================== PNG -> AVIF ================================
 :: 3. Build file list
 set files=
 for /f "delims=" %%f in ('dir /b /on "%tempdir%\*.png"') do set "files=!files! "%tempdir%\%%f""
 
 :: 4. Convert to AVIF with original frame timing
-avifenc --yuv 422 --nclx 1/13/1 -q 20 --qalpha 95 -j 8 --speed 1 -a enable-chroma-deltaq=0 -a enable-qm=0 --timescale 1000 --duration !duration! -o "%basename%.avif" %files%
+avifenc --yuv 422 --nclx 1/13/1 -q 20 --qalpha 90 -j 8 --speed 2 -a enable-chroma-deltaq=0 -a enable-qm=0 --timescale 1000 --duration !duration! -o "%basename%.avif" %files%
 
 
 :: 5. Cleanup
