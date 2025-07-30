@@ -45,8 +45,8 @@ ffmpeg -vsync vfr ^
   -i "%~1" ^
   -vf "format=rgba" ^
   -c:v jpegxl ^
-    -distance 3.0 ^
-    -effort 8 ^
+    -distance 1.0 ^
+    -effort 9 ^
     -modular 0 ^
   "%tempdir%\%%03d.jxl"
 
@@ -56,7 +56,7 @@ ffmpeg -vsync vfr ^
 for /f "delims=" %%f in ('dir /b /on "%tempdir%\*.jxl"') do (
     set "jxlfile=%tempdir%\%%f"
     set "pngfile=!jxlfile:.jxl=.png!"
-    ffmpeg -i "!jxlfile!" -c:v png -compression_level 4 "!pngfile!" >nul 2>&1
+    ffmpeg -i "!jxlfile!" -c:v png -compression_level 3 "!pngfile!" >nul 2>&1
     del "!jxlfile!"
 )
 
@@ -82,7 +82,18 @@ set files=
 for /f "delims=" %%f in ('dir /b /on "%tempdir%\*.png"') do set "files=!files! "%tempdir%\%%f""
 
 :: 4. Convert to AVIF with original frame timing
-avifenc --yuv 422 --nclx 1/13/1 -q 20 --qalpha 90 -j 8 --speed 2 -a enable-chroma-deltaq=0 -a enable-qm=0 --timescale 1000 --duration !duration! -o "%basename%.avif" %files%
+avifenc --yuv 422 --nclx 1/13/1 ^
+ -q 40 --qalpha 95 ^
+ -j 8 --speed 3 ^
+ -a enable-chroma-deltaq=1 ^
+ -a enable-qm=1 ^
+ -a color:aq-mode=3 ^
+ -a color:deltaq-mode=3 ^
+ -a color:enable-dnl-denoising=0 ^
+ -a enable-ref-frame-mvs=1 ^
+ -a enable-obmc=1 ^
+ -a enable-global-motion=1 ^
+ --timescale 1000 --duration !duration! -o "%basename%.avif" %files%
 
 
 :: 5. Cleanup
