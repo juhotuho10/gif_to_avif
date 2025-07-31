@@ -33,35 +33,19 @@ set "tempdir=__tmp"
 if exist "%tempdir%" rd /s /q "%tempdir%"
 mkdir "%tempdir%"
 
-
 :: Get base filename
 for %%F in ("%~n1") do set "basename=%%~F"
 
 :: ================================== GIF -> JPEX_XL ================================
 
-:: 1. Convert GIF to *lossy* JPEG XL frames (alpha preserved)
+:: 1. Convert GIF to png
 ffmpeg -vsync vfr ^
   -color_trc iec61966_2_1 -color_primaries bt709 ^
   -i "%~1" ^
   -vf "format=rgba" ^
-  -c:v jpegxl ^
-    -distance 0.0 ^
-    -effort 9 ^
-    -modular 0 ^
-  "%tempdir%\%%03d.jxl"
-
-:: ================================== JPEG_XL -> PNG ================================
-
-:: 2. Convert JPEG XL frames to PNG
-for /f "delims=" %%f in ('dir /b /on "%tempdir%\*.jxl"') do (
-    set "jxlfile=%tempdir%\%%f"
-    set "pngfile=!jxlfile:.jxl=.png!"
-    ffmpeg -i "!jxlfile!" -c:v png -compression_level 0 "!pngfile!" >nul 2>&1
-    del "!jxlfile!"
-)
+  "%tempdir%\%%03d.png"
 
 :: ================================== DUPLICATE FRAME IF WE ONLY HAVE 1 ================================
-
 
 
 set /a file_count=0
@@ -82,22 +66,15 @@ set files=
 for /f "delims=" %%f in ('dir /b /on "%tempdir%\*.png"') do set "files=!files! "%tempdir%\%%f""
 
 :: 4. Convert to AVIF with original frame timing
-avifenc --yuv 422 --nclx 1/13/1 ^
--q 30 --qalpha 95 ^
--j 8 --speed 2 ^
+avifenc --yuv 420 --nclx 1/13/1 ^
+--sharpyuv ^
+--qcolor 30 --qalpha 95 ^
+--jobs 8 --speed 2 ^
 -a aq-mode=3 ^
 -a enable-chroma-deltaq=1 ^
 -a enable-qm=1 ^
 -a enable-tpl-model=1 ^
 --timescale 1000 --duration !duration! -o "%basename%.avif" %files%
-
-:: maybe not needed? / less impactful
-::-a enable-global-motion=1 ^
-::-a enable-obmc=1 ^
-::-a enable-ref-frame-mvs=1 ^
-::-a enable-dnl-denoising=0 ^
-::-a deltaq-mode=3 ^
-::-a enable-ref-frame-mvs=1 ^
 
 
 :: 5. Cleanup
