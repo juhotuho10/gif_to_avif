@@ -36,13 +36,11 @@ mkdir "%tempdir%"
 :: Get base filename
 for %%F in ("%~n1") do set "basename=%%~F"
 
-:: ================================== GIF -> JPEX_XL ================================
+:: ================================== GIF -> PNG ================================
 
 :: 1. Convert GIF to png
 ffmpeg -vsync vfr ^
-  -color_trc iec61966_2_1 -color_primaries bt709 ^
   -i "%~1" ^
-  -vf "format=rgba" ^
   "%tempdir%\%%03d.png"
 
 :: ================================== DUPLICATE FRAME IF WE ONLY HAVE 1 ================================
@@ -67,13 +65,16 @@ for /f "delims=" %%f in ('dir /b /on "%tempdir%\*.png"') do set "files=!files! "
 
 :: 4. Convert to AVIF with original frame timing
 avifenc --yuv 420 --nclx 1/13/1 ^
---sharpyuv ^
+--codec aom ^
 --qcolor 30 --qalpha 95 ^
 --jobs 8 --speed 2 ^
+--autotiling ^
 -a aq-mode=3 ^
--a enable-chroma-deltaq=1 ^
 -a enable-qm=1 ^
+-a enable-chroma-deltaq=1 ^
 -a enable-tpl-model=1 ^
+-a end-usage=vbr ^
+-a tune=ssim ^
 --timescale 1000 --duration !duration! -o "%basename%.avif" %files%
 
 
