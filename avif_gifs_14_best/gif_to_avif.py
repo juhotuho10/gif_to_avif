@@ -155,7 +155,7 @@ def convert_png_to_avif(avifenc_path: str, temp_dir: str, output_file: Union[str
         f"-a enable-tpl-model=1 "
         f"-a end-usage=vbr "
         f"-a tune=ssim "
-        f"--timescale 1000  "
+        f"--timescale 1000 "
         f'{file_args} "{output_file}"'
     )
 
@@ -177,7 +177,7 @@ def convert_gif_to_avif(input_file: str, tool_paths: Dict[str, str]) -> bool:
 
     print(f"Converting: {input_file} -> {output_file}")
 
-    temp_dir = "__tmp"
+    temp_dir = "__tmp"  # used to shorten the total command we use, since windows has a max command len limit
 
     # Use a temporary directory
     try:
