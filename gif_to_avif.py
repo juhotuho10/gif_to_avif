@@ -9,10 +9,8 @@ import os
 import shutil
 import subprocess
 import sys
-import tempfile
 from pathlib import Path
-from statistics import mean
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Union
 
 try:
     from PIL import Image
@@ -88,133 +86,45 @@ def check_dependencies() -> Dict[str, str]:
     return tool_paths
 
 
-def get_frame_durations_pil(input_file: str) -> Optional[List[int]]:
+def gif_to_frames(input_file: str, temp_dir: str) -> List[int]:
     # get all the gif frame durations with PIL
-    try:
-        with Image.open(input_file) as gif:
-            durations_ms: List[int] = []
-            frame_count = gif.n_frames  # type: ignore
 
-            for i in range(frame_count):
-                gif.seek(i)
-                # Get duration in milliseconds, default to 100ms if not specified
-                duration = gif.info.get("duration", 100)
-                durations_ms.append(max(1, duration))
+    with Image.open(input_file) as gif:
+        durations_ms: List[int] = []
+        frame_count = gif.n_frames  # type: ignore
 
-            print(f"Found {len(durations_ms)} frames with individual durations")
-            return durations_ms
+        for i in range(frame_count):
+            gif.seek(i)
+            # Get duration in milliseconds, default to 100ms if not specified
+            duration = gif.info.get("duration", 100)
+            durations_ms.append(max(1, duration))
+            frame = gif.convert("RGBA")
 
-    except Exception as e:
-        print(f"Error reading GIF with PIL: {e}")
-        return None
+            output_path = os.path.join(temp_dir, f"{i + 1:03d}.png")
+            frame.save(output_path, "PNG")
 
-
-def calculate_timing(durations_ms: Optional[List[int]]) -> Tuple[int, List[int]]:
-    # balance all the frame timings to be close enough to eachother
-    # we do this because avif doesnt support variable frame durations
-
-    if not durations_ms:
-        return 40, []  # Default 25fps (40ms per frame)
-
-    print(f"Original frame durations (ms): {durations_ms}")
-
-    # create frame list with durations
-    frames = []  # type: List[Dict[str, int]]
-    for duration_ms in durations_ms:
-        frames.append({"duration": duration_ms, "subdivisions": 1})
-
-    max_iterations = 12  # Safety limit
-
-    for iteration in range(max_iterations):
-        min_duration = min(f["duration"] for f in frames)
-        max_duration = max(f["duration"] for f in frames)
-
-        # check if all durations are within 10% of each other or close enough
-        if (max_duration <= min_duration * 1.1) or abs(max_duration - min_duration) <= 10:
-            break
-
-        longest_frames = [i for i, f in enumerate(frames) if f["duration"] == max_duration]
-
-        # split all longest frames in half
-        for frame_idx in longest_frames:
-            frame = frames[frame_idx]
-            frame["duration"] //= 2
-            frame["subdivisions"] *= 2
-
-        print(f"Iteration {iteration}: Split {len(longest_frames)} frame(s) to {max_duration // 2} ms")
-
-    # average duration for uniform playback
-    avg_duration = round(mean(f["duration"] for f in frames))
-
-    # Build duplication list for original frames
-    duplication_counts = [frame["subdivisions"] for frame in frames]
-
-    print(f"Final frame durations (ms): {[f['duration'] for f in frames]}")
-    print(f"Average uniform duration: {avg_duration}ms")
-    print(f"Frame duplication counts: {duplication_counts}")
-    print(f"Total frames after balancing: {sum(duplication_counts)}")
-
-    return avg_duration, duplication_counts
+        print(f"Found {len(durations_ms)} frames with individual durations")
+        return durations_ms
 
 
 def optimize_gif_alpha(gifsicle_path: str, input_path: str, ouput_path: str) -> None:
     # removing occasional problems with gifs having weird alpha behavior
     # optimizes the gif a little and then resets the gif with unoptimize
-    cmd = f'"{gifsicle_path}" {input_path} --optimize=2 --lossy=1 --output {ouput_path}'
-    run_command(cmd, capture_output=False)
+    png_files = glob.glob(os.path.join(input_path, "*.png"))
 
-    cmd = f'"{gifsicle_path}" -b --unoptimize {ouput_path}'
-    run_command(cmd, capture_output=False)
+    if len(png_files) > 1:
+        # optimization fails if we only have 1 file
+        cmd = f'"{gifsicle_path}" {input_path} --optimize=2 --lossy=1 --output {ouput_path}'
+        run_command(cmd, capture_output=False)
 
-
-def convert_gif_to_png_pil(input_file: str, temp_dir: str) -> None:
-    # convert GIF to PNG frames using PIL
-    print("Converting GIF to PNG frames...")
-
-    try:
-        with Image.open(input_file) as gif:
-            frame_count = getattr(gif, "n_frames", 1)
-
-            for i in range(frame_count):
-                gif.seek(i)
-
-                frame = gif.convert("RGBA")
-
-                # Save as PNG
-                output_path = os.path.join(temp_dir, f"{i + 1:03d}.png")
-                frame.save(output_path, "PNG")
-
-            print(f"Extracted {frame_count} frames as PNG")
-
-    except Exception as e:
-        print(f"Error extracting frames with PIL: {e}")
-        raise
+        cmd = f'"{gifsicle_path}" -b --unoptimize {ouput_path}'
+        run_command(cmd, capture_output=False)
+    else:
+        # Fallback: copy GIF from input to output
+        shutil.copy(input_path, ouput_path)
 
 
-def duplicate_frames_for_timing(temp_dir: str, duplication_counts: List[int]) -> None:
-    # Duplicate frames based on timing requirements and remove the original frames
-    original_files = sorted(glob.glob(os.path.join(temp_dir, "*.png")))
-
-    assert len(original_files) == len(duplication_counts)
-
-    print("Duplicating frames for balanced timing...")
-
-    # Create duplicated frames
-    frame_counter = 0
-    for original_file, count in zip(original_files, duplication_counts):
-        for _ in range(count):
-            new_name = os.path.join(temp_dir, f"_{frame_counter:04d}.png")
-            shutil.copy2(original_file, new_name)
-            frame_counter += 1
-
-    # Remove original files
-    for original_file in original_files:
-        os.remove(original_file)
-
-    print(f"Created {frame_counter} balanced frames from {len(original_files)} original frames")
-
-
-def convert_png_to_avif(avifenc_path: str, temp_dir: str, output_file: Union[str, Path], duration: int) -> None:
+def convert_png_to_avif(avifenc_path: str, temp_dir: str, output_file: Union[str, Path], durations: List[int]) -> None:
     # Convert PNG frames to animated AVIF using avifenc
 
     # sorted list of PNG files
@@ -223,8 +133,15 @@ def convert_png_to_avif(avifenc_path: str, temp_dir: str, output_file: Union[str
     if not png_files:
         raise RuntimeError("No PNG files found in temporary directory")
 
-    # Build file list for avifenc
-    file_args = " ".join(f'"{f}"' for f in png_files)
+    assert len(durations) == len(png_files)
+
+    last_dur = None
+    file_args = ""
+    for dur, f in zip(durations, png_files):
+        if dur != last_dur:
+            file_args += f"--duration:u {dur} "
+            last_dur = dur
+        file_args += f"{f} "
 
     cmd = (
         f'"{avifenc_path}" --yuv 420 --nclx 1/13/1 '
@@ -238,8 +155,8 @@ def convert_png_to_avif(avifenc_path: str, temp_dir: str, output_file: Union[str
         f"-a enable-tpl-model=1 "
         f"-a end-usage=vbr "
         f"-a tune=ssim "
-        f"--timescale 1000 --duration {duration} "
-        f'-o "{output_file}" {file_args}'
+        f"--timescale 1000 "
+        f'{file_args} "{output_file}"'
     )
 
     print("Converting PNG frames to AVIF...")
@@ -260,46 +177,43 @@ def convert_gif_to_avif(input_file: str, tool_paths: Dict[str, str]) -> bool:
 
     print(f"Converting: {input_file} -> {output_file}")
 
+    temp_dir = "__tmp"  # used to shorten the total command we use, since windows has a max command len limit
+
     # Use a temporary directory
     try:
-        with tempfile.TemporaryDirectory(prefix="Gif2Avif_") as temp_dir:
+        # Clean and create temp directory
+        if os.path.exists(temp_dir):
+            shutil.rmtree(temp_dir)
+        os.makedirs(temp_dir)
+
+        try:
             # Prepare temp input path
-            temp_changed_input = os.path.join(temp_dir, f"temp_{input_path.name}")
-
-            # Extract frame durations
-            frame_durations_ms = get_frame_durations_pil(input_file)
-
-            # Calculate balanced timing and duplication counts
-            if frame_durations_ms:
-                uniform_duration, duplication_counts = calculate_timing(frame_durations_ms)
-            else:
-                # Fallback to uniform 25fps
-                uniform_duration = 40
-                duplication_counts = None
-
-            print(f"Using balanced frame duration: {uniform_duration}ms")
+            changed_input_file = os.path.join(temp_dir, f"temp_{input_path.name}")
 
             # Optimize alpha channel
-            optimize_gif_alpha(tool_paths["gifsicle"], input_file, temp_changed_input)
+            optimize_gif_alpha(tool_paths["gifsicle"], input_file, changed_input_file)
 
-            # Convert GIF to PNG frames
-            convert_gif_to_png_pil(temp_changed_input, temp_dir)
-
-            # Duplicate frames if needed
-            if duplication_counts and any(count > 1 for count in duplication_counts):
-                duplicate_frames_for_timing(temp_dir, duplication_counts)
+            # Extract frame durations
+            frame_durations_ms = gif_to_frames(changed_input_file, temp_dir)
 
             # Ensure at least two frames
-            handle_single_frame(temp_dir)
+            if len(frame_durations_ms) == 1:
+                handle_single_frame(temp_dir)
+                first_duration = frame_durations_ms[0]
+                frame_durations_ms.append(first_duration)
 
             # Create animated AVIF
-            convert_png_to_avif(tool_paths["avifenc"], temp_dir, output_file, uniform_duration)
+            convert_png_to_avif(tool_paths["avifenc"], temp_dir, output_file, frame_durations_ms)
 
             print(f"Conversion complete: {output_file}")
             return True
-    except Exception as e:
-        print(f"Error during conversion: {e}")
-        return False
+        except Exception as e:
+            print(f"Error during conversion: {e}")
+            return False
+    finally:
+        # Always clean up temp directory
+        if os.path.exists(temp_dir):
+            shutil.rmtree(temp_dir)
 
 
 def main() -> None:
