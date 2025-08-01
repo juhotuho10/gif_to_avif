@@ -9,6 +9,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 from statistics import mean
 from typing import Dict, List, Optional, Tuple, Union
@@ -259,19 +260,13 @@ def convert_gif_to_avif(input_file: str, tool_paths: Dict[str, str]) -> bool:
 
     print(f"Converting: {input_file} -> {output_file}")
 
-    # Create temporary directory
-    temp_dir = "__tmp"
-
+    # Use a temporary directory
     try:
-        # Clean and create temp directory
-        if os.path.exists(temp_dir):
-            shutil.rmtree(temp_dir)
-        os.makedirs(temp_dir)
+        with tempfile.TemporaryDirectory(prefix="Gif2Avif_") as temp_dir:
+            # Prepare temp input path
+            temp_changed_input = os.path.join(temp_dir, f"temp_{input_path.name}")
 
-        temp_changed_input = os.path.join(temp_dir, f"temp_{input_path.name}")
-
-        try:
-            # Extract individual frame durations using PIL
+            # Extract frame durations
             frame_durations_ms = get_frame_durations_pil(input_file)
 
             # Calculate balanced timing and duplication counts
@@ -284,33 +279,27 @@ def convert_gif_to_avif(input_file: str, tool_paths: Dict[str, str]) -> bool:
 
             print(f"Using balanced frame duration: {uniform_duration}ms")
 
+            # Optimize alpha channel
             optimize_gif_alpha(tool_paths["gifsicle"], input_file, temp_changed_input)
 
-            # Convert GIF to PNG frames using PIL
+            # Convert GIF to PNG frames
             convert_gif_to_png_pil(temp_changed_input, temp_dir)
 
-            # Duplicate frames for balanced timing if needed
+            # Duplicate frames if needed
             if duplication_counts and any(count > 1 for count in duplication_counts):
                 duplicate_frames_for_timing(temp_dir, duplication_counts)
 
-            # duplicate if there is only single frame, since we need 2 frames to make animated avif
+            # Ensure at least two frames
             handle_single_frame(temp_dir)
 
-            # Convert PNG frames to animated AVIF
+            # Create animated AVIF
             convert_png_to_avif(tool_paths["avifenc"], temp_dir, output_file, uniform_duration)
 
             print(f"Conversion complete: {output_file}")
             return True
-
-        except Exception as e:
-            print(f"Error during conversion: {e}")
-            return False
-
-    finally:
-        # Always clean up temp directory
-
-        if os.path.exists(temp_dir):
-            shutil.rmtree(temp_dir)
+    except Exception as e:
+        print(f"Error during conversion: {e}")
+        return False
 
 
 def main() -> None:
