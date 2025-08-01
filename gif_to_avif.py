@@ -14,7 +14,7 @@ from statistics import mean
 from typing import Dict, List, Optional, Tuple, Union
 
 try:
-    from PIL import Image, ImageSequence
+    from PIL import Image
 
 except ImportError:
     print("Error: PIL (Pillow) is required. Install it with: pip install Pillow")
@@ -122,7 +122,7 @@ def calculate_timing(durations_ms: Optional[List[int]]) -> Tuple[int, List[int]]
     for duration_ms in durations_ms:
         frames.append({"duration": duration_ms, "subdivisions": 1})
 
-    max_iterations = 10  # Safety limit
+    max_iterations = 12  # Safety limit
 
     for iteration in range(max_iterations):
         min_duration = min(f["duration"] for f in frames)
@@ -158,7 +158,11 @@ def calculate_timing(durations_ms: Optional[List[int]]) -> Tuple[int, List[int]]
 
 def optimize_gif_alpha(gifsicle_path: str, input_path: str, ouput_path: str) -> None:
     # removing occasional problems with gifs having weird alpha behavior
+    # optimizes the gif a little and then resets the gif with unoptimize
     cmd = f'"{gifsicle_path}" {input_path} --optimize=2 --lossy=1 --output {ouput_path}'
+    run_command(cmd, capture_output=False)
+
+    cmd = f'"{gifsicle_path}" -b --unoptimize {ouput_path}'
     run_command(cmd, capture_output=False)
 
 
@@ -173,7 +177,6 @@ def convert_gif_to_png_pil(input_file: str, temp_dir: str) -> None:
             for i in range(frame_count):
                 gif.seek(i)
 
-                # Convert to RGBA to handle transparency properly
                 frame = gif.convert("RGBA")
 
                 # Save as PNG
@@ -253,7 +256,6 @@ def convert_gif_to_avif(input_file: str, tool_paths: Dict[str, str]) -> bool:
     script_dir = Path(__file__).parent
     output_file = script_dir / f"{input_path.stem}.avif"
     input_path = Path(input_file)
-    temp_changed_input = str(input_path.parent / f"temp_{input_path.name}")
 
     print(f"Converting: {input_file} -> {output_file}")
 
@@ -265,6 +267,8 @@ def convert_gif_to_avif(input_file: str, tool_paths: Dict[str, str]) -> bool:
         if os.path.exists(temp_dir):
             shutil.rmtree(temp_dir)
         os.makedirs(temp_dir)
+
+        temp_changed_input = os.path.join(temp_dir, f"temp_{input_path.name}")
 
         try:
             # Extract individual frame durations using PIL
@@ -307,9 +311,6 @@ def convert_gif_to_avif(input_file: str, tool_paths: Dict[str, str]) -> bool:
 
         if os.path.exists(temp_dir):
             shutil.rmtree(temp_dir)
-
-        if os.path.exists(temp_changed_input):
-            os.remove(temp_changed_input)
 
 
 def main() -> None:
