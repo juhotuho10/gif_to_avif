@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """
 GIF to AVIF Converter
-Converts GIF files to AVIF format while preserving animation timing and quality.
-Requires: ffmpeg, ffprobe, and avifenc to be installed and available in PATH.
+Requires: ffmpeg, ffprobe, and avifenc to be callable from command line
 """
 
 import glob
@@ -11,21 +10,22 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
+from statistics import mean
 
 
 def handle_single_frame(temp_dir):
-    """Duplicate single frame if only one frame exists."""
+    # duplicate single frame if only one frame exists
     png_files = glob.glob(os.path.join(temp_dir, "*.png"))
 
     if len(png_files) == 1:
-        print("Duplicating single frame for AVIF animation...")
+        print("duplicating single frame")
         source = png_files[0]
         duplicate = os.path.join(temp_dir, "duplicate.png")
         shutil.copy2(source, duplicate)
 
 
 def run_command(cmd, check=True, capture_output=True):
-    """Run a command and return the result."""
+    # run a command and return the result
     try:
         result = subprocess.run(cmd, shell=True, check=check, capture_output=capture_output, text=True)
         return result
@@ -36,7 +36,8 @@ def run_command(cmd, check=True, capture_output=True):
 
 
 def find_tool(tool_name):
-    """Find tool in local folder first, then in PATH."""
+    # find tool and call path from name
+
     script_dir = Path(__file__).parent
 
     # Check local folder first (with .exe extension on Windows)
@@ -57,7 +58,7 @@ def find_tool(tool_name):
 
 
 def check_dependencies():
-    """Check if required tools are available in local folder or PATH."""
+    # checks that the required tools are available and returns their call path
     tools = ["ffmpeg", "ffprobe", "avifenc"]
     tool_paths = {}
     missing = []
@@ -80,60 +81,62 @@ def check_dependencies():
 
 
 def get_frame_durations(ffprobe_path, input_file):
-    """Extract individual frame durations from GIF using ffprobe."""
+    # get all the gif frame durations with ffprobe
+
     cmd = f'"{ffprobe_path}" -v error -select_streams v:0 -show_entries packet=duration_time -of csv=p=0 "{input_file}"'
 
     try:
         result = run_command(cmd)
-        durations = []
+        durations_ms = []
         for line in result.stdout.strip().split("\n"):
             if line.strip():
                 try:
                     duration = float(line.strip())
-                    durations.append(duration)
+                    duration_ms = max(1, round(duration * 1000))
+                    durations_ms.append(duration_ms)
                 except ValueError:
                     continue
 
-        if not durations:
+        if not durations_ms:
             print("Warning: Could not extract frame durations, using uniform timing")
             return None
 
-        print(f"Found {len(durations)} frames with individual durations")
-        return durations
+        print(f"Found {len(durations_ms)} frames with individual durations")
+        return durations_ms
 
     except subprocess.CalledProcessError:
         print("Warning: Could not extract frame durations, using uniform timing")
         return None
 
 
-def calculate_timing(durations):
-    """Balance frame durations by subdividing longest frames until within 10% tolerance."""
-    if not durations:
+def calculate_timing(durations_ms):
+    # balance all the frame timings to be close enough to eachother
+    # we do this because avif doesnt support variable frame durations
+
+    if not durations_ms:
         return 40, []  # Default 25fps (40ms per frame)
 
-    print(f"Original frame durations (ms): {durations}")
+    print(f"Original frame durations (ms): {durations_ms}")
 
-    # Convert to milliseconds and create frame list with durations
+    # create frame list with durations
     frames = []
-    for duration in durations:
-        duration_ms = max(1, round(duration * 1000))  # min 1 millisecond
+    for duration_ms in durations_ms:
         frames.append({"duration": duration_ms, "subdivisions": 1})
 
     iteration = 0
     max_iterations = 10  # Safety limit
 
     for iteration in range(max_iterations):
-        # Find min and max durations
         min_duration = min(f["duration"] for f in frames)
         max_duration = max(f["duration"] for f in frames)
 
-        # Check if all durations are within 10% of each other or close enough
+        # check if all durations are within 10% of each other or close enough
         if (max_duration <= min_duration * 1.1) or abs(max_duration - min_duration) <= 10:
             break
 
         longest_frames = [i for i, f in enumerate(frames) if f["duration"] == max_duration]
 
-        # Split all longest frames in half
+        # split all longest frames in half
         split_count = 0
         for frame_idx in longest_frames:
             frame = frames[frame_idx]
@@ -143,8 +146,8 @@ def calculate_timing(durations):
 
         print(f"Iteration {iteration}: Split {split_count} frame(s) to {max_duration // 2} ms")
 
-    # Calculate average duration for uniform playback
-    avg_duration = round(sum(f["duration"] for f in frames) / len(frames))
+    # average duration for uniform playback
+    avg_duration = round(mean(f["duration"] for f in frames))
 
     # Build duplication list for original frames
     duplication_counts = [frame["subdivisions"] for frame in frames]
@@ -158,7 +161,7 @@ def calculate_timing(durations):
 
 
 def convert_gif_to_png(ffmpeg_path, input_file, temp_dir):
-    """Convert GIF to PNG frames using ffmpeg."""
+    # convert GIF to PNG frames using ffmpeg
     output_pattern = os.path.join(temp_dir, "%03d.png")
 
     cmd = f'"{ffmpeg_path}" -vsync vfr -i "{input_file}" "{output_pattern}"'
@@ -168,7 +171,7 @@ def convert_gif_to_png(ffmpeg_path, input_file, temp_dir):
 
 
 def duplicate_frames_for_timing(temp_dir, duplication_counts):
-    """Duplicate frames based on timing requirements and remove the original frames"""
+    # Duplicate frames based on timing requirements and remove the original frames
     original_files = sorted(glob.glob(os.path.join(temp_dir, "*.png")))
 
     assert len(original_files) == len(duplication_counts)
@@ -183,16 +186,17 @@ def duplicate_frames_for_timing(temp_dir, duplication_counts):
             shutil.copy2(original_file, new_name)
             frame_counter += 1
 
-    # Remove original numbered files
+    # Remove original files
     for original_file in original_files:
         os.remove(original_file)
 
-    print(f"Created {frame_counter - 1} balanced frames from {len(original_files)} original frames")
+    print(f"Created {frame_counter} balanced frames from {len(original_files)} original frames")
 
 
 def convert_png_to_avif(avifenc_path, temp_dir, output_file, duration):
-    """Convert PNG frames to AVIF using avifenc."""
-    # Get sorted list of PNG files
+    # Convert PNG frames to animated AVIF using avifenc
+
+    # sorted list of PNG files
     png_files = sorted(glob.glob(os.path.join(temp_dir, "*.png")))
 
     if not png_files:
@@ -222,7 +226,6 @@ def convert_png_to_avif(avifenc_path, temp_dir, output_file, duration):
 
 
 def convert_gif_to_avif(input_file, tool_paths):
-    """Main conversion function."""
     # Validate input file
     if not os.path.exists(input_file):
         print(f"Error: File not found - {input_file}")
@@ -246,11 +249,11 @@ def convert_gif_to_avif(input_file, tool_paths):
 
         try:
             # Extract individual frame durations
-            frame_durations = get_frame_durations(tool_paths["ffprobe"], input_file)
+            frame_durations_ms = get_frame_durations(tool_paths["ffprobe"], input_file)
 
             # Calculate balanced timing and duplication counts
-            if frame_durations:
-                uniform_duration, duplication_counts = calculate_timing(frame_durations)
+            if frame_durations_ms:
+                uniform_duration, duplication_counts = calculate_timing(frame_durations_ms)
             else:
                 # Fallback to uniform 25fps
                 uniform_duration = 40
@@ -265,7 +268,7 @@ def convert_gif_to_avif(input_file, tool_paths):
             if duplication_counts and any(count > 1 for count in duplication_counts):
                 duplicate_frames_for_timing(temp_dir, duplication_counts)
 
-            # Duplicate if there is only single frame
+            # duplicate if there is only single frame, since we need 2 frames to make animated avif
             handle_single_frame(temp_dir)
 
             # Convert PNG frames to animated AVIF
