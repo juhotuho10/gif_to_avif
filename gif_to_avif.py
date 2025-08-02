@@ -96,8 +96,8 @@ def gif_to_frames(input_file: str, temp_dir: str) -> List[int]:
 
         for i in range(frame_count):
             gif.seek(i)
-            # Get duration in milliseconds, default to 100ms if not specified
-            duration = gif.info.get("duration", 100)
+            # get duration or default 40 ms (25 fps)
+            duration = gif.info.get("duration", 40)
             durations_ms.append(max(1, duration))
             frame = gif.convert("RGBA")
 
