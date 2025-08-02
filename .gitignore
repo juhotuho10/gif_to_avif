@@ -1,9 +1,10 @@
 # Ignore everything
 *
-avif_gifs/
 # But not these files
 !*.bat
 !*.py
 !.gitignore
 # Also allow traversal into subdirectories
 !*/
+
+avif_gifs/
