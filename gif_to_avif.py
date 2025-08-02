@@ -103,18 +103,21 @@ def convert_png_to_avif(temp_dir: str, output_file: Union[str, Path], durations:
         file_args += f"{f} "
 
     cmd = (
-        f"avifenc --yuv 420 --nclx 1/13/1 "
-        f"--codec aom "
-        f"--qcolor 40 --qalpha 95 "
-        f"--jobs 8 --speed 2 "
-        f"--autotiling "
-        f"-a aq-mode=3 "
-        f"-a enable-qm=1 "
-        f"-a enable-chroma-deltaq=1 "
-        f"-a enable-tpl-model=1 "
-        f"-a end-usage=vbr "
-        f"-a tune=ssim "
-        f"--timescale 1000 "
+        "avifenc --yuv 420 --nclx 1/13/1 "
+        "--codec aom "  # has extra options
+        "--qcolor 40 --qalpha 95 "  # configuable 0-100
+        "--jobs 8 "  # 8 threads
+        "--speed 2 "  # good speed and quality compromise
+        "--autotiling "  # seems to get better quality for variety of gifs
+        "-a aq-mode=3 "  # better quality
+        "-a enable-qm=1 "
+        "-a enable-chroma-deltaq=1 "
+        "-a enable-tpl-model=1 "
+        "-a end-usage=vbr "  # better quality, small increase in file size
+        "-a tune=ssim "  # better quality, small increase in file size
+        "--range limited "  # gifs are already limited in YUV range
+        "--depth 8 "  # gifs already limited to 8 bit color
+        "--timescale 1000 "
         f'{file_args} "{output_file}"'
     )
 
