@@ -66,7 +66,7 @@ def find_tool(tool_name: str) -> Optional[str]:
 
 def check_dependencies() -> Dict[str, str]:
     # checks that the required tools are available and returns their call path
-    tools = ["avifenc", "gifsicle"]
+    tools = ["avifenc"]
     tool_paths: Dict[str, str] = {}
     missing: List[str] = []
 
@@ -106,23 +106,6 @@ def gif_to_frames(input_file: str, temp_dir: str) -> List[int]:
 
         print(f"Found {len(durations_ms)} frames with individual durations")
         return durations_ms
-
-
-def optimize_gif_alpha(gifsicle_path: str, input_path: str, ouput_path: str) -> None:
-    # removing occasional problems with gifs having weird alpha behavior
-    # optimizes the gif a little and then resets the gif with unoptimize
-    png_files = glob.glob(os.path.join(input_path, "*.png"))
-
-    if len(png_files) > 1:
-        # optimization fails if we only have 1 file
-        cmd = f'"{gifsicle_path}" {input_path} --optimize=2 --lossy=1 --output {ouput_path}'
-        run_command(cmd, capture_output=False)
-
-        cmd = f'"{gifsicle_path}" -b --unoptimize {ouput_path}'
-        run_command(cmd, capture_output=False)
-    else:
-        # Fallback: copy GIF from input to output
-        shutil.copy(input_path, ouput_path)
 
 
 def convert_png_to_avif(avifenc_path: str, temp_dir: str, output_file: Union[str, Path], durations: List[int]) -> None:
@@ -180,14 +163,8 @@ def convert_gif_to_avif(input_file: str, tool_paths: Dict[str, str]) -> bool:
 
     try:
         with tempfile.TemporaryDirectory(prefix="Gif2Avif_") as temp_dir:
-            # Prepare temp input path
-            changed_input_file = os.path.join(temp_dir, f"temp_{input_path.name}")
-
-            # Optimize alpha channel
-            optimize_gif_alpha(tool_paths["gifsicle"], input_file, changed_input_file)
-
             # Extract frame durations
-            frame_durations_ms = gif_to_frames(changed_input_file, temp_dir)
+            frame_durations_ms = gif_to_frames(input_file, temp_dir)
 
             # Ensure at least two frames
             if len(frame_durations_ms) == 1:
