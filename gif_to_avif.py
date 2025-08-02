@@ -11,7 +11,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import List, Union
 
 try:
     from PIL import Image
@@ -41,21 +41,6 @@ def run_command(cmd: str | List[str], *, check: bool = True, capture_output: boo
         print(f"Command failed: {cmd}")
         print(f"Error: {e.stderr}")
         raise
-
-
-def find_tool(tool_name: str) -> Optional[str]:
-    # find tool and call path from name
-    script_dir = Path(__file__).parent
-
-    # Check local folder first (with .exe extension on Windows)
-    local_paths = [script_dir / tool_name, script_dir / f"{tool_name}.exe"]
-
-    for local_path in local_paths:
-        if local_path.exists() and local_path.is_file():
-            print(f"Using local {tool_name}: {local_path}")
-            return str(local_path)
-
-    # Check if tool is in PATH
 
 
 def check_dependencies():
