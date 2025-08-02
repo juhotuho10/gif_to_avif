@@ -11,7 +11,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from typing import Dict, List, Optional, Union
+from typing import List, Optional, Union
 
 try:
     from PIL import Image
@@ -56,26 +56,18 @@ def find_tool(tool_name: str) -> Optional[str]:
             return str(local_path)
 
     # Check if tool is in PATH
-    try:
-        run_command([tool_name, "-version"], check=True, capture_output=True)
-        print(f"Using system {tool_name} from PATH")
-        return tool_name
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        return None
 
 
-def check_dependencies() -> Dict[str, str]:
+def check_dependencies():
     # checks that the required tools are available and returns their call path
     tools = ["avifenc"]
-    tool_paths: Dict[str, str] = {}
     missing: List[str] = []
 
-    for tool in tools:
-        tool_path = find_tool(tool)
-        if tool_path:
-            tool_paths[tool] = tool_path
-        else:
-            missing.append(tool)
+    for tool_name in tools:
+        try:
+            run_command(f"{tool_name} --version", check=True, capture_output=True)
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            missing.append(tool_name)
 
     if missing:
         print(f"Error: Missing required tools: {', '.join(missing)}")
@@ -83,8 +75,6 @@ def check_dependencies() -> Dict[str, str]:
         print("1. Install them and ensure they're in your PATH, or")
         print("2. Place the executables in the same folder as this script")
         sys.exit(1)
-
-    return tool_paths
 
 
 def gif_to_frames(input_file: str, temp_dir: str) -> List[int]:
@@ -108,7 +98,7 @@ def gif_to_frames(input_file: str, temp_dir: str) -> List[int]:
         return durations_ms
 
 
-def convert_png_to_avif(avifenc_path: str, temp_dir: str, output_file: Union[str, Path], durations: List[int]) -> None:
+def convert_png_to_avif(temp_dir: str, output_file: Union[str, Path], durations: List[int]) -> None:
     # Convert PNG frames to animated AVIF using avifenc
 
     # sorted list of PNG files
@@ -128,7 +118,7 @@ def convert_png_to_avif(avifenc_path: str, temp_dir: str, output_file: Union[str
         file_args += f"{f} "
 
     cmd = (
-        f'"{avifenc_path}" --yuv 420 --nclx 1/13/1 '
+        f"avifenc --yuv 420 --nclx 1/13/1 "
         f"--codec aom "
         f"--qcolor 40 --qalpha 95 "
         f"--jobs 8 --speed 2 "
@@ -147,7 +137,7 @@ def convert_png_to_avif(avifenc_path: str, temp_dir: str, output_file: Union[str
     run_command(cmd, capture_output=False)
 
 
-def convert_gif_to_avif(input_file: str, tool_paths: Dict[str, str]) -> bool:
+def convert_gif_to_avif(input_file: str) -> bool:
     # Validate input file
     if not os.path.exists(input_file):
         print(f"Error: File not found - {input_file}")
@@ -173,7 +163,7 @@ def convert_gif_to_avif(input_file: str, tool_paths: Dict[str, str]) -> bool:
                 frame_durations_ms.append(first_duration)
 
             # Create animated AVIF
-            convert_png_to_avif(tool_paths["avifenc"], temp_dir, output_file, frame_durations_ms)
+            convert_png_to_avif(temp_dir, output_file, frame_durations_ms)
 
             print(f"Conversion complete: {output_file}")
             return True
@@ -190,9 +180,9 @@ def main() -> None:
 
     input_file = sys.argv[1]
 
-    tool_paths = check_dependencies()
+    check_dependencies()
 
-    success = convert_gif_to_avif(input_file, tool_paths)
+    success = convert_gif_to_avif(input_file)
 
     if not success:
         sys.exit(1)
