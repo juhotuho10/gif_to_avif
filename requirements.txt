@@ -1,0 +1,8 @@
+# Python dependencies
+Pillow
+
+# External dependency (not installable via pip)
+# avifenc is required for AVIF encoding. Download it from:
+# https://github.com/AOMediaCodec/libavif/releases
+# Make sure avifenc is available in your system PATH or the .exe is in the python script folder
+# where it can be accessed from the shell / cmd by simply calling avifenc (commands) 
