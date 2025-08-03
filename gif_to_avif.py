@@ -115,6 +115,7 @@ def convert_png_to_avif(temp_dir: str, output_file: Union[str, Path], durations:
         "-a enable-tpl-model=1 "
         "-a end-usage=vbr "  # better quality, small increase in file size
         "-a tune=ssim "  # better quality, small increase in file size
+        "-a sharpness=1 "  # seems to give better quality with small size penalty
         "--range limited "  # gifs are already limited in YUV range
         "--depth 8 "  # gifs already limited to 8 bit color
         "--timescale 1000 "
