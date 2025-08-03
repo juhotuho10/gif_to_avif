@@ -167,6 +167,8 @@ def convert_gif_to_avif(input_path: Path, quality: int | None = None) -> bool:
 
 
 def main() -> None:
+    check_dependencies()
+
     if len(sys.argv) != 2 and len(sys.argv) != 4:
         print('Usage: python gif_to_avif.py "gif_file.gif" [--quality N]')
         print("--quality N: (optional, default 60) (int: 0<=N<=100)")
@@ -177,23 +179,16 @@ def main() -> None:
     os.chdir(script_dir)
 
     input_path = Path(sys.argv[1])
-    if input_path.suffix.lower() != ".gif":
-        print("Program currently only supports converting .gif files")
-        print("If you want to convert an image instead, it's better to use avifenc for that")
-        print(f'Error: Input file must be a .gif file, got: "{input_path.name}"')
-        sys.exit(1)
-
     quality = None
+
     if len(sys.argv) == 4:
         if sys.argv[2] == "--quality":
             try:
                 quality = int(sys.argv[3])
-
                 if not (0 <= quality <= 100):
                     raise ValueError()
                 elif quality > 90:
                     warnings.warn("Quality above 90 can generate file sizes larger than the original GIF with little visual benefit")
-
             except ValueError:
                 print("Error: --quality must be an integer between 0 and 100")
                 sys.exit(1)
@@ -201,9 +196,45 @@ def main() -> None:
             print(f"Error: Unknown option: {sys.argv[2]}")
             sys.exit(1)
 
-    check_dependencies()
-    success = convert_gif_to_avif(input_path, quality)
-    if not success:
+    # Convert a single .gif
+    if input_path.is_file():
+        if input_path.suffix.lower() != ".gif":
+            print("Program currently only supports converting .gif files")
+            print("If you want to convert an image instead, it's better to use avifenc for that")
+            print(f'Error: Input file must be a .gif file, got: "{input_path.name}"')
+            sys.exit(1)
+
+        success = convert_gif_to_avif(input_path, quality)
+        if not success:
+            sys.exit(1)
+
+    # Convert all .gifs in a directory
+    elif input_path.is_dir():
+        gif_files = list(input_path.glob("*.gif"))
+
+        if not gif_files:
+            print(f"No .gif files found in directory: {input_path}")
+            sys.exit(1)
+
+        print(f"Found {len(gif_files)} .gif files in folder '{input_path}'")
+
+        failed_files = []
+
+        for gif_file in gif_files:
+            print(f"\nProcessing: {gif_file.name}")
+            success = convert_gif_to_avif(gif_file, quality)
+            if not success:
+                failed_files.append(gif_file.name)
+
+        print("\nBatch conversion complete.")
+        if failed_files:
+            print("The following files failed to convert:")
+            for name in failed_files:
+                print(f" - {name}")
+            sys.exit(1)
+    else:
+        print(f"Error: Invalid input path: {input_path}")
+        print("the input path must be a .gif file or a folder that has .gif files in it")
         sys.exit(1)
 
 
