@@ -3,6 +3,7 @@
 A Python tool for converting `.gif` files into animated `.avif` files using [`avifenc`](https://github.com/AOMediaCodec/libavif) and [Pillow](https://python-pillow.org/).
 
 Keeps gif transparency and frame durations intact for the final .avif file
+
 the resulting .avif file is placed in the same folder as the .gif file
 
 ---
