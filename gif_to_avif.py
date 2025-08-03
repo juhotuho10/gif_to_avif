@@ -190,9 +190,8 @@ def main() -> None:
 
                 if not (0 <= quality <= 100):
                     raise ValueError()
-                else:
-                    if quality == 100:
-                        print("WARNING: quality 100 can generate file sizes larger than the orignal gif with basically 0 benefit")
+                elif quality > 90:
+                    print("WARNING: quality above 90 can generate file sizes larger than the orignal gif with little benefit")
 
             except ValueError:
                 print("Error: --quality must be an integer between 0 and 100")
