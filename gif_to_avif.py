@@ -112,8 +112,6 @@ def convert_png_to_avif(temp_dir: Path, output_file: Path, durations: List[int])
         "-a enable-chroma-deltaq=1 "  # little better on
         "-a end-usage=vbr "  # better quality, small increase in file size
         "-a tune=ssim "  # better quality, small increase in file size
-        "-a sharpness=1 "  # seems to give better quality with small size penalty
-        "--range limited "  # gifs are already limited in YUV range
         "--depth 8 "  # gifs already limited to 8 bit color
         "--timescale 1000 "
         f'{file_args} "{output_file}"'
