@@ -15,13 +15,15 @@ python gif_to_avif.py path/to/gif_file.gif [--quality N]
 > **Note:** quality above 90 isn't worth the trouble, you won't really see quality improvement and the file size can be bigger than the original .gif file 
 
 Recommended settings:
+- basically lossless: 90
 - super high quality: 80
-- great quality: 60
+- little compression & great quality: 60
 - compression & fine quality: 40
 - great compression & some detail: 30
 - full compression: 20
+- maybe some pixels left: 10
 
-noisy gifs lose their detail faster than smoother gifs, they are also harder to compress
+> **Note:** noisy gifs lose their detail faster than smoother gifs, they are also harder to compress
 
 ---
 
