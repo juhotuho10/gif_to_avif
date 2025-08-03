@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
-GIF to AVIF Converter
+simple GIF to AVIF Converter that keeps transparency and frame durations intact
+the default avifenc settings are lossy, but that can be changed
 Requires: avifenc to be callable from command line, PIL (Pillow) for GIF processing
 """
 
@@ -33,7 +34,7 @@ def run_command(cmd: str | List[str], *, check: bool = True, capture_output: boo
 
 
 def check_dependencies():
-    # checks that the required tools are available and returns their call path
+    # checks that the required tools are available
     tools = ["avifenc"]
     missing: List[str] = []
 
@@ -51,6 +52,7 @@ def check_dependencies():
 
 def handle_single_frame(temp_dir: Path) -> None:
     # duplicate single frame if only one frame exists
+    # this keeps the .avif file animated instead of turning it into a static image
     png_files = glob.glob(os.path.join(temp_dir, "*.png"))
 
     if len(png_files) == 1:
@@ -61,7 +63,7 @@ def handle_single_frame(temp_dir: Path) -> None:
 
 
 def gif_to_frames(input_path: Path, temp_dir: Path) -> List[int]:
-    # get all the gif frame durations with PIL
+    # get all the gif frames and durations with PIL
 
     with Image.open(input_path) as gif:
         durations_ms: List[int] = []
@@ -84,14 +86,13 @@ def gif_to_frames(input_path: Path, temp_dir: Path) -> List[int]:
 def convert_png_to_avif(temp_dir: Path, output_file: Path, durations: List[int]) -> None:
     # Convert PNG frames to animated AVIF using avifenc
 
-    # sorted list of PNG files
-
     png_files = sorted(temp_dir.glob("*.png"))
     if not png_files:
         raise RuntimeError("No PNG files found in temporary directory")
     if len(durations) != len(png_files):
         raise ValueError("Mismatch between frame count and durations")
 
+    # adjust the frame duration based on gif frame durations
     last_dur = None
     file_args = ""
     for dur, f in zip(durations, png_files):
@@ -100,6 +101,8 @@ def convert_png_to_avif(temp_dir: Path, output_file: Path, durations: List[int])
             last_dur = dur
         file_args += f"{f} "
 
+    # see: https://man.archlinux.org/man/avifenc.1.en
+    # pretty good and tested lossy avifenc settings for good quality / file size
     cmd = (
         "avifenc --yuv 420 --nclx 1/13/1 "
         "--codec aom "  # has extra options
@@ -133,9 +136,7 @@ def convert_gif_to_avif(input_path: Path) -> bool:
         return False
 
     # Get base filename for output
-    script_dir = Path(__file__).parent
-    output_file = script_dir / f"{input_path.stem}.avif"
-
+    output_file = input_path.with_suffix(".avif")
     print(f"Converting: {input_path} -> {output_file}")
 
     try:
@@ -166,6 +167,7 @@ def main() -> None:
         print('Usage: python gif_to_avif.py "gif_file.gif"')
         sys.exit(1)
 
+    # execute in the .py file directory
     script_dir = Path(__file__).parent
     os.chdir(script_dir)
 
