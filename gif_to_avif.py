@@ -83,7 +83,7 @@ def gif_to_frames(input_path: Path, temp_dir: Path) -> List[int]:
         return durations_ms
 
 
-def convert_png_to_avif(temp_dir: Path, output_file: Path, durations: List[int]) -> None:
+def convert_png_to_avif(temp_dir: Path, output_file: Path, durations: List[int], quality: int | None = None) -> None:
     # Convert PNG frames to animated AVIF using avifenc
 
     png_files = sorted(temp_dir.glob("*.png"))
@@ -102,11 +102,16 @@ def convert_png_to_avif(temp_dir: Path, output_file: Path, durations: List[int])
         file_args += f"{f} "
 
     # see: https://man.archlinux.org/man/avifenc.1.en
+    cmd = None
+    if quality is None:
+        # defualty
+        quality = 40
+
     # pretty good and tested lossy avifenc settings for good quality / file size
     cmd = (
         "avifenc --yuv 420 --nclx 1/13/1 "
         "--codec aom "  # has extra options
-        "--qcolor 40 --qalpha 95 "  # configuable 0-100
+        f"--qcolor {quality} --qalpha 95 "  # configuable 0-100
         "--jobs 8 "  # 8 threads
         "--speed 2 "  # good speed and quality compromise
         "--autotiling "  # seems to get better quality for variety of gifs
@@ -127,7 +132,7 @@ def convert_png_to_avif(temp_dir: Path, output_file: Path, durations: List[int])
         raise
 
 
-def convert_gif_to_avif(input_path: Path) -> bool:
+def convert_gif_to_avif(input_path: Path, quality: int | None = None) -> bool:
     # Validate input file
     if not os.path.exists(input_path):
         print(f"Error: File not found - {input_path}")
@@ -150,7 +155,7 @@ def convert_gif_to_avif(input_path: Path) -> bool:
                 frame_durations_ms.append(first_duration)
 
             # Create animated AVIF
-            convert_png_to_avif(temp_path, output_file, frame_durations_ms)
+            convert_png_to_avif(temp_path, output_file, frame_durations_ms, quality)
 
             print(f"Conversion complete: {output_file}")
             return True
@@ -161,8 +166,9 @@ def convert_gif_to_avif(input_path: Path) -> bool:
 
 
 def main() -> None:
-    if len(sys.argv) != 2:
-        print('Usage: python gif_to_avif.py "gif_file.gif"')
+    if len(sys.argv) != 2 and len(sys.argv) != 4:
+        print('Usage: python gif_to_avif.py "gif_file.gif" [--quality N]')
+        print("--quality N: (optional, default 40) (int: 0<=N<=100)")
         sys.exit(1)
 
     # execute in the .py file directory
@@ -170,8 +176,33 @@ def main() -> None:
     os.chdir(script_dir)
 
     input_path = Path(sys.argv[1])
+    if input_path.suffix.lower() != ".gif":
+        print("Program currently only supports converting .gif files")
+        print("If you want to convert an image instead, it's better to use avifenc for that")
+        print(f'Error: Input file must be a .gif file, got: "{input_path.name}"')
+        sys.exit(1)
+
+    quality = None
+    if len(sys.argv) == 4:
+        if sys.argv[2] == "--quality":
+            try:
+                quality = int(sys.argv[3])
+
+                if not (0 <= quality <= 100):
+                    raise ValueError()
+                else:
+                    if quality == 100:
+                        print("WARNING: quality 100 can generate file sizes larger than the orignal gif with basically 0 benefit")
+
+            except ValueError:
+                print("Error: --quality must be an integer between 0 and 100")
+                sys.exit(1)
+        else:
+            print(f"Error: Unknown option: {sys.argv[2]}")
+            sys.exit(1)
+
     check_dependencies()
-    success = convert_gif_to_avif(input_path)
+    success = convert_gif_to_avif(input_path, quality)
     if not success:
         sys.exit(1)
 
