@@ -110,7 +110,6 @@ def convert_png_to_avif(temp_dir: Path, output_file: Path, durations: List[int])
         "--jobs 8 "  # 8 threads
         "--speed 2 "  # good speed and quality compromise
         "--autotiling "  # seems to get better quality for variety of gifs
-        "-a aq-mode=3 "  # better quality
         "-a enable-qm=1 "  # smaller file size
         "-a end-usage=vbr "  # usually better quality and smaller file size
         "-a tune=ssim "  # better quality, small increase in file size
