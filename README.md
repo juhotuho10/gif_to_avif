@@ -1,6 +1,6 @@
 # GIF to AVIF Converter
 
-A Python tool for converting `.gif` files into animated `.avif` files using [`avifenc`](https://github.com/AOMediaCodec/libavif) and [Pillow](https://python-pillow.org/).
+A Python tool for converting `.gif` files (or folders containing `.gif`s) and into animated `.avif` files using [`avifenc`](https://github.com/AOMediaCodec/libavif) and [Pillow](https://python-pillow.org/).
 
 Keeps gif transparency and frame durations intact for the final .avif file
 
@@ -11,6 +11,11 @@ the resulting .avif file is placed in the same folder as the .gif file
 ## Usage
 ```bash
 python gif_to_avif.py path/to/gif_file.gif [--quality N]
+```
+or
+
+```bash
+python gif_to_avif.py path/to/folder/ [--quality N]
 ```
 
 --quality N: (optional, default 60) (integer: 0 <= N <= 100)
