@@ -3,7 +3,7 @@
 A Python tool for converting `.gif` files into animated `.avif` files using [`avifenc`](https://github.com/AOMediaCodec/libavif) and [Pillow](https://python-pillow.org/).
 
 Keeps gif transparency and frame durations intact for the final .avif file
-
+the resulting .avif file is placed in the same folder as the .gif file
 ---
 
 ## Usage
@@ -12,8 +12,16 @@ python gif_to_avif.py path/to/gif_file.gif [--quality N]
 ```
 
 --quality N: (optional, default 40) (integer: 0 <= N <= 100)
+> **Note:** quality above 90 isn't worth the trouble, you won't really see quality improvement and the file size can be bigger than the original .gif file 
 
-the resulting .avif file is placed in the same folder as the .gif file
+Recommended settings:
+- super high quality: 80
+- great quality: 60
+- compression & fine quality: 40
+- great compression & some detail: 30
+- full compression: 20
+
+noisy gifs lose their detail faster than smoother gifs, they are also harder to compress
 
 ---
 
