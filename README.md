@@ -16,9 +16,9 @@ python gif_to_avif.py path/to/gif_file.gif [--quality N]
 
 Recommended settings:
 - basically lossless: 90
-- super high quality: 80
-- little compression & great quality: 60
-- compression & fine quality: 40
+- little compression & super high quality: 80
+- compression & great quality: 60
+- good compression & fine quality: 40
 - great compression & some detail: 30
 - full compression: 20
 - maybe some pixels left: 10
