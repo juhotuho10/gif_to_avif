@@ -122,7 +122,12 @@ def convert_png_to_avif(temp_dir: str, output_file: Union[str, Path], durations:
     )
 
     print("Converting PNG frames to AVIF...")
-    run_command(cmd, capture_output=False)
+    try:
+        run_command(cmd, capture_output=False)
+    except:
+        print("error creating the animated avif file")
+        print("this probably means that the original gif is corrupted / non standard")
+        raise
 
 
 def convert_gif_to_avif(input_file: str) -> bool:
