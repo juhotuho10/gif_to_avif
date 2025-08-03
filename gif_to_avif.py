@@ -106,7 +106,7 @@ def convert_png_to_avif(temp_dir: Path, output_file: Path, durations: List[int],
     cmd = None
     if quality is None:
         # defualty
-        quality = 40
+        quality = 60
 
     # pretty good and tested lossy avifenc settings for good quality / file size
     cmd = (
@@ -169,7 +169,7 @@ def convert_gif_to_avif(input_path: Path, quality: int | None = None) -> bool:
 def main() -> None:
     if len(sys.argv) != 2 and len(sys.argv) != 4:
         print('Usage: python gif_to_avif.py "gif_file.gif" [--quality N]')
-        print("--quality N: (optional, default 40) (int: 0<=N<=100)")
+        print("--quality N: (optional, default 60) (int: 0<=N<=100)")
         sys.exit(1)
 
     # execute in the .py file directory

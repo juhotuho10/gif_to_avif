@@ -13,7 +13,7 @@ the resulting .avif file is placed in the same folder as the .gif file
 python gif_to_avif.py path/to/gif_file.gif [--quality N]
 ```
 
---quality N: (optional, default 40) (integer: 0 <= N <= 100)
+--quality N: (optional, default 60) (integer: 0 <= N <= 100)
 > **Note:** quality above 90 isn't worth the trouble, you won't really see quality improvement and the file size can be bigger than the original .gif file 
 
 Recommended settings:
