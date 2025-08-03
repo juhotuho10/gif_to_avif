@@ -11,6 +11,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import warnings
 from pathlib import Path
 from typing import List
 
@@ -191,7 +192,7 @@ def main() -> None:
                 if not (0 <= quality <= 100):
                     raise ValueError()
                 elif quality > 90:
-                    print("WARNING: quality above 90 can generate file sizes larger than the orignal gif with little benefit")
+                    warnings.warn("Quality above 90 can generate file sizes larger than the original GIF with little visual benefit")
 
             except ValueError:
                 print("Error: --quality must be an integer between 0 and 100")
