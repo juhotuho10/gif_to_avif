@@ -110,9 +110,8 @@ def convert_png_to_avif(temp_dir: str, output_file: Union[str, Path], durations:
         "--speed 2 "  # good speed and quality compromise
         "--autotiling "  # seems to get better quality for variety of gifs
         "-a aq-mode=3 "  # better quality
-        "-a enable-qm=1 "
-        "-a enable-chroma-deltaq=1 "
-        "-a enable-tpl-model=1 "
+        "-a enable-qm=1 "  # smaller file size
+        "-a enable-chroma-deltaq=1 "  # little better on
         "-a end-usage=vbr "  # better quality, small increase in file size
         "-a tune=ssim "  # better quality, small increase in file size
         "-a sharpness=1 "  # seems to give better quality with small size penalty
