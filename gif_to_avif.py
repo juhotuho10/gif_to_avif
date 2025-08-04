@@ -77,7 +77,7 @@ def gif_to_frames(input_path: Path, temp_dir: Path) -> List[int]:
             durations_ms.append(max(1, duration))
             frame = gif.convert("RGBA")
 
-            output_path = os.path.join(temp_dir, f"{i + 1:03d}.png")
+            output_path = os.path.join(temp_dir, f"{i:05d}.png")
             frame.save(output_path, "PNG")
 
         print(f"Found {len(durations_ms)} frames with individual durations")
