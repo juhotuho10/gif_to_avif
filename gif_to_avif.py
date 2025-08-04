@@ -66,22 +66,28 @@ def handle_single_frame(temp_dir: Path) -> None:
 def gif_to_frames(input_path: Path, temp_dir: Path) -> List[int]:
     # get all the gif frames and durations with PIL
 
-    with Image.open(input_path) as gif:
-        durations_ms: List[int] = []
-        frame_count = gif.n_frames  # type: ignore
+    durations_ms: List[int] = []
+    frame_index = 0
 
-        for i in range(frame_count):
-            gif.seek(i)
+    with Image.open(input_path) as gif:
+        while True:
+            try:
+                gif.seek(frame_index)
+            except EOFError:
+                # No more frames
+                break
+
             # get duration or default 40 ms (25 fps)
             duration = gif.info.get("duration", 40)
             durations_ms.append(max(1, duration))
+
             frame = gif.convert("RGBA")
-
-            output_path = os.path.join(temp_dir, f"{i:05d}.png")
+            output_path = os.path.join(temp_dir, f"{frame_index:05d}.png")
             frame.save(output_path, "PNG")
+            frame_index += 1
 
-        print(f"Found {len(durations_ms)} frames with individual durations")
-        return durations_ms
+    print(f"Found {len(durations_ms)} frames with individual durations")
+    return durations_ms
 
 
 def convert_png_to_avif(temp_dir: Path, output_file: Path, durations: List[int], quality: int | None = None) -> None:
