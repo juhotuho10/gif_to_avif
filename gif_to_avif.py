@@ -108,19 +108,18 @@ def convert_png_to_avif(temp_dir: Path, output_file: Path, durations: List[int],
             last_dur = dur
         file_args += f"{f} "
 
-    # see: https://man.archlinux.org/man/avifenc.1.en
-    cmd = None
     if quality is None:
         # defualty
         quality = 60
 
+    # see: https://man.archlinux.org/man/avifenc.1.en
     # pretty good and tested lossy avifenc settings for good quality / file size
     cmd = (
         "avifenc --yuv 420 --nclx 1/13/1 "
         "--codec aom "  # has extra options
         f"--qcolor {quality} --qalpha 95 "  # configuable 0-100
         "--jobs 8 "  # 8 threads
-        "--speed 2 "  # good speed and quality compromise
+        "--speed 5 "  # good speed and quality compromise
         "--autotiling "  # seems to get better quality for variety of gifs
         "-a enable-qm=1 "  # smaller file size
         "-a end-usage=vbr "  # usually better quality and smaller file size
